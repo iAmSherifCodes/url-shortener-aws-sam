@@ -1,13 +1,26 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb"
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb")
 
 const client = new DynamoDBClient({ region: "us-east-1" });
 const docClient = DynamoDBDocumentClient.from(client);
-const table_name = process.env.table_name;
+const { SSMClient, GetParameterCommand } = require("@aws-sdk/client-ssm");
+const ssmClient = new SSMClient({ region: "us-east-1" });
 
+const table_name_path = process.env.TABLE_NAME;
 
+const retrieveTable = async () => {
+    const input = {
+        Name: table_name_path,
+        WithDecryption: false,
+    };
+    const command = new GetParameterCommand(input);
+    const response = await ssmClient.send(command);
 
-export const handler = async (event, context)=>{
+    console.log("Retrieved table name" + response.Parameter.Value);
+    return response.Parameter.Value;
+}
+
+module.exports.handler = async (event, context)=>{
     const short_url = event.queryStringParameters?.short_url;
     console.log(event.queryStringParameters?.short_url, "from the handler")
     if (!short_url) {
@@ -44,6 +57,7 @@ export const handler = async (event, context)=>{
 }
 
 const getLongUrl = async (short_url) => {
+    const table_name = await retrieveTable();
     const params = {
         TableName: table_name,
         Key: {
@@ -53,6 +67,7 @@ const getLongUrl = async (short_url) => {
 
     try {
         const data = await docClient.send(new GetCommand(params));
+        console.log("Fetched from DB" + data);
         return data.Item ? data.Item.long_url : null;
     } catch (error) {
         throw new Error("Error fetching data from DynamoDB");
