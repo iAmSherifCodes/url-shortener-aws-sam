@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Url Sample SAM Template for url
+
+Globals:
+  Function:
+    Timeout: 3
+    LoggingConfig:
+      LogFormat: JSON
+Resources:
+  RedirectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main/functions/redirect.handler
+      Runtime: nodejs18.x
+      FunctionUrlConfig:
+        AuthType: NONE
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: "{{resolve:ssm:/url/dev/get-table/name}}"
+        -  SSMParameterReadPolicy:
+            ParameterName: "/url/dev/get-table/name"
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          TABLE_NAME: "/url/dev/get-table/name"
+
+
+Outputs:
+  RedirectFunction:
+    Description: Function Url
+    Value: RedirectFunction
